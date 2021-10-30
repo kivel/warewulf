@@ -1,17 +1,17 @@
 package main
 
 import (
-    "bytes"
-    //"bytes"
-    "fmt"
+	"bytes"
+	"encoding/json"
+	//"bytes"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
-    //"net/url"
-    "os"
+	//"net/url"
+	"os"
 	"os/exec"
 	"time"
-    "encoding/json"
 
 	"github.com/hpcng/warewulf/internal/pkg/warewulfconf"
 	"github.com/hpcng/warewulf/internal/pkg/wwlog"
@@ -71,16 +71,16 @@ func main() {
 		},
 	}
 
-    // get all network interfaces and create json payload
-    interfaces, _ := net.Interfaces()
-    nics := make(map[string]string)
-    for _, inter := range interfaces {
-        nics[inter.Name] = inter.HardwareAddr.String()
-    }
-    hwAddrs, err := json.Marshal(nics)
-    if err != nil {
-        panic(err)
-    }
+	// get all network interfaces and create json payload
+	interfaces, _ := net.Interfaces()
+	nics := make(map[string]string)
+	for _, inter := range interfaces {
+		nics[inter.Name] = inter.HardwareAddr.String()
+	}
+	hwAddrs, err := json.Marshal(nics)
+	if err != nil {
+		panic(err)
+	}
 
 	for {
 		var resp *http.Response
@@ -89,8 +89,8 @@ func main() {
 		for {
 			var err error
 
-            getString := fmt.Sprintf("http://%s:%d/overlay-runtime/", "127.0.0.1", conf.Warewulf.Port)
-            resp, err = webclient.Post(getString, "application/json", bytes.NewBuffer(hwAddrs))
+			getString := fmt.Sprintf("http://%s:%d/overlay-runtime/", conf.Ipaddr, conf.Warewulf.Port)
+			resp, err = webclient.Post(getString, "application/json", bytes.NewBuffer(hwAddrs))
 			if err == nil {
 				break
 			} else {
@@ -102,18 +102,16 @@ func main() {
 				}
 				counter++
 			}
-
 			time.Sleep(1000 * time.Millisecond)
 		}
 
-          if resp.StatusCode != 200 {
+		if resp.StatusCode != 200 {
 			log.Printf("Not updating runtime overlay, got status code: %d\n", resp.StatusCode)
 			time.Sleep(60000 * time.Millisecond)
 			continue
 		}
 
 		log.Printf("Updating system\n")
-        log.Printf("body: %d\n", resp.Body)
 		command := exec.Command("/bin/sh", "-c", "gzip -dc | cpio -iu")
 		command.Stdin = resp.Body
 		err := command.Run()

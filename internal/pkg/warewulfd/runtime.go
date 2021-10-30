@@ -1,12 +1,12 @@
 package warewulfd
 
 import (
-    //"io"
-    "net/http"
-    //"os"
-    "strconv"
+	"encoding/json"
+	//"io"
+	"net/http"
+	//"os"
+	"strconv"
 	"strings"
-    "encoding/json"
 
 	"github.com/hpcng/warewulf/internal/pkg/config"
 	"github.com/hpcng/warewulf/internal/pkg/node"
@@ -16,22 +16,22 @@ import (
 )
 
 func RuntimeOverlaySend(w http.ResponseWriter, req *http.Request) {
-    daemonLogf("DEBUG: req.Method: %s\n", req.Method)
-    var res map[string]interface{}
+	daemonLogf("DEBUG: req.Method: %s\n", req.Method)
+	var res map[string]interface{}
 
-    switch req.Method {
-    case "GET":
-        daemonLogf("WARNING: legacy client using 'GET'.\n")
-    case "POST":
-        daemonLogf("DEBUG: new client using 'POST'.\n")
-        err := json.NewDecoder(req.Body).Decode(&res)
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusBadRequest)
-            return
-        }
-    default:
-        daemonLogf("Sorry, only GET and POST methods are supported.")
-    }
+	switch req.Method {
+	case "GET":
+		daemonLogf("WARNING: legacy client using 'GET'.\n")
+	case "POST":
+		daemonLogf("DEBUG: new client using 'POST'.\n")
+		err := json.NewDecoder(req.Body).Decode(&res)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	default:
+		daemonLogf("Sorry, only GET and POST methods are supported.")
+	}
 
 	conf, err := warewulfconf.New()
 	if err != nil {
@@ -68,23 +68,24 @@ func RuntimeOverlaySend(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-    var n node.NodeInfo
-    if !conf.Warewulf.MacIdentify {
-        n, err = nodes.FindByIpaddr(remote[0])
-        if err != nil {
-            daemonLogf("WARNING: Could not find node by IP address: %s\n", remote[0])
-            w.WriteHeader(404)
-            return
-        }
-    } else {
-        for _, hwa := range(res){
-            n, err = nodes.FindByHwaddr(hwa.(string))
-            if n.Id.Defined(){
-                daemonLogf("DEBUG: nodeId: %s, HardwareAddr: %s\n", n.Id.Get(), hwa)
-                break
-            }
-        }
-    }
+	var n node.NodeInfo
+	if !conf.Warewulf.MacIdentify {
+		n, err = nodes.FindByIpaddr(remote[0])
+		if err != nil {
+			daemonLogf("WARNING: Could not find node by IP address: %s\n", remote[0])
+			w.WriteHeader(404)
+			return
+		}
+	} else {
+		for _, hwa := range res {
+			daemonLogf("DEBUG: HardwareAddr: %d\n", hwa)
+			n, err = nodes.FindByHwaddr(hwa.(string))
+			if n.Id.Defined() {
+				daemonLogf("DEBUG: nodeId: %s, HardwareAddr: %s\n", n.Id.Get(), hwa)
+				break
+			}
+		}
+	}
 
 	if !n.Id.Defined() {
 		daemonLogf("REQ:   %15s: %s (unknown/unconfigured node)\n", n.Id.Get(), req.URL.Path)
@@ -104,9 +105,7 @@ func RuntimeOverlaySend(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 
-		//err := sendFile(w, fileName, n.Id.Get())
-        //err := sendRuntimeOverlay(w, fileName)
-        http.ServeFile(w, req, fileName)
+		http.ServeFile(w, req, fileName)
 		if err != nil {
 			daemonLogf("ERROR: %s\n", err)
 		}
@@ -115,19 +114,3 @@ func RuntimeOverlaySend(w http.ResponseWriter, req *http.Request) {
 		daemonLogf("WARNING: No 'runtime system-overlay' set for node %s\n", n.Id.Get())
 	}
 }
-
-//func sendRuntimeOverlay(w http.ResponseWriter, filename string) error {
-//    fd, err := os.Open(filename)
-//    defer fd.Close()
-//    if err != nil {
-//        http.Error(w, err.Error(), http.StatusInternalServerError)
-//        //return
-//    }
-//
-//
-//    if _, err := io.Copy(w, fd); err != nil {
-//        http.Error(w, err.Error(), http.StatusInternalServerError)
-//        //return
-//    }
-//    return nil
-//}
