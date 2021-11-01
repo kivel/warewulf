@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"log/syslog"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -46,6 +47,18 @@ func daemonLogf(message string, a ...interface{}) {
 		prefix := fmt.Sprintf("[%s] ", time.Now().Format(time.UnixDate))
 		fmt.Printf(prefix+message, a...)
 	}
+}
+
+// Check if a certain ip in a cidr range.
+// credit: https://stackoverflow.com/users/16714009/prajwal-koirala
+// https://stackoverflow.com/questions/43274579/go-check-if-ip-address-is-in-a-network
+func cidrRangeContains(cidrRange string, checkIP string) (bool, error) {
+	_, ipnet, err := net.ParseCIDR(cidrRange)
+	if err != nil {
+		return false, err
+	}
+	secondIP := net.ParseIP(checkIP)
+	return ipnet.Contains(secondIP), err
 }
 
 func getSanity(req *http.Request) (node.NodeInfo, error) {

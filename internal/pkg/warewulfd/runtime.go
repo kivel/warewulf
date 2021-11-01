@@ -48,6 +48,19 @@ func RuntimeOverlaySend(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	// TODO: switch for allowed subnet
+	daemonLogf("subnets: %v\n", conf.Warewulf.AllowedSubnets)
+	for _, network := range conf.Warewulf.AllowedSubnets {
+		c, err := cidrRangeContains(network, remote[0])
+		if err != nil {
+			daemonLogf("WARNING: Could not check for IP address in allowed subnets: %s\nreason: %s", remote[0], err)
+		}
+		daemonLogf("network: %v, IP: %v, OK? %v\n", network, remote[0], c)
+		if c {
+			break
+		}
+	}
+
 	n, err := nodes.FindByIpaddr(remote[0])
 	if err != nil {
 		daemonLogf("WARNING: Could not find node by IP address: %s\n", remote[0])
