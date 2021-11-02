@@ -1,14 +1,12 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	//"bytes"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
-	//"net/url"
+	"net/url"
 	"os"
 	"os/exec"
 	"time"
@@ -71,16 +69,30 @@ func main() {
 		},
 	}
 
-	// get all network interfaces and create json payload
-	interfaces, _ := net.Interfaces()
-	nics := make(map[string]string)
-	for _, inter := range interfaces {
-		nics[inter.Name] = inter.HardwareAddr.String()
-	}
-	hwAddrs, err := json.Marshal(nics)
+	// build the URL
+	base := fmt.Sprintf("http://%s:%d", conf.Ipaddr, conf.Warewulf.Port)
+	daemonURL, err := url.Parse(base)
 	if err != nil {
-		panic(err)
+		return
 	}
+	daemonURL.Path += "overlay-runtime"
+	// Query params
+	params := url.Values{}
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		log.Printf("failed to obtain network interfaces:\n")
+	}
+	for _, i := range interfaces {
+		hwAddr := i.HardwareAddr.String()
+		if len(hwAddr) == 0 {
+			continue
+		}
+		params.Add("hwAddr", hwAddr)
+	}
+
+	daemonURL.RawQuery = params.Encode()
+	log.Printf("Encoded URL is %q\n", daemonURL.String())
 
 	for {
 		var resp *http.Response
@@ -89,8 +101,8 @@ func main() {
 		for {
 			var err error
 
-			getString := fmt.Sprintf("http://%s:%d/overlay-runtime/", conf.Ipaddr, conf.Warewulf.Port)
-			resp, err = webclient.Post(getString, "application/json", bytes.NewBuffer(hwAddrs))
+			resp, err = webclient.Get(daemonURL.String())
+
 			if err == nil {
 				break
 			} else {
