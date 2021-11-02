@@ -68,8 +68,9 @@ func getSanity(req *http.Request) (node.NodeInfo, error) {
 func getHostPort(w http.ResponseWriter, req *http.Request) (string, int, error) {
 	host, portStr, err := net.SplitHostPort(req.RemoteAddr)
 	if err != nil {
-		daemonLogf("ERROR: failed to split host and port: %s\n", portStr)
+		daemonLogf("ERROR: failed to split host and port: %s\n", err)
 		w.WriteHeader(http.StatusServiceUnavailable)
+		return host, 0, err
 	}
 
 	port, err := strconv.Atoi(portStr)

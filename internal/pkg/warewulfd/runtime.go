@@ -41,9 +41,8 @@ func RuntimeOverlaySend(w http.ResponseWriter, req *http.Request) {
 	}
 
 	var n node.NodeInfo
-	daemonLogf("DEBUG: conf.Warewulf.MacIdentify: %t\n", conf.Warewulf.MacIdentify)
+	// default to IP based host identification
 	if !conf.Warewulf.MacIdentify {
-		daemonLogf("DEBUG: IP based: %t\n", conf.Warewulf.MacIdentify)
 		n, err = nodes.FindByIpaddr(host)
 		if err != nil {
 			daemonLogf("WARNING: Could not find node by IP address: %s\n", host)
@@ -56,7 +55,6 @@ func RuntimeOverlaySend(w http.ResponseWriter, req *http.Request) {
 			daemonLogf("ERROR: Url Param 'hwAddr' is missing")
 			return
 		}
-		daemonLogf("DEBUG: Mac based: %t\n", conf.Warewulf.MacIdentify)
 		for _, hwa := range hwAddresses {
 			n, err = nodes.FindByHwaddr(hwa)
 			if n.Id.Defined() {
