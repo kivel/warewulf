@@ -1,37 +1,15 @@
 package warewulfd
 
 import (
-	"encoding/json"
-	//"io"
-	"net/http"
-	//"os"
-	"strconv"
-	"strings"
-
 	"github.com/hpcng/warewulf/internal/pkg/config"
 	"github.com/hpcng/warewulf/internal/pkg/node"
 	"github.com/hpcng/warewulf/internal/pkg/overlay"
 	"github.com/hpcng/warewulf/internal/pkg/util"
 	"github.com/hpcng/warewulf/internal/pkg/warewulfconf"
+	"net/http"
 )
 
 func RuntimeOverlaySend(w http.ResponseWriter, req *http.Request) {
-	daemonLogf("DEBUG: req.Method: %s\n", req.Method)
-	var res map[string]interface{}
-
-	switch req.Method {
-	case "GET":
-		daemonLogf("WARNING: legacy client using 'GET'.\n")
-	case "POST":
-		daemonLogf("DEBUG: new client using 'POST'.\n")
-		err := json.NewDecoder(req.Body).Decode(&res)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-	default:
-		daemonLogf("Sorry, only GET and POST methods are supported.")
-	}
 
 	conf, err := warewulfconf.New()
 	if err != nil {
@@ -47,39 +25,40 @@ func RuntimeOverlaySend(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	remote := strings.Split(req.RemoteAddr, ":")
-	port, err := strconv.Atoi(remote[1])
+	// save way to obtain IP and Port, for IPv4 and IPv6
+	host, port, err := getHostPort(w, req)
 	if err != nil {
-		daemonLogf("ERROR: Could not convert port to integer: %s\n", remote[1])
-		w.WriteHeader(503)
-		return
-	}
-
-	if err != nil {
-		daemonLogf("ERROR: Could not load configuration file: %s\n", err)
+		daemonLogf("ERROR: failed to obtain host and port: %s\n", err)
 		return
 	}
 
 	if conf.Warewulf.Secure {
 		if port >= 1024 {
-			daemonLogf("DENIED: Connection coming from non-privledged port: %s\n", req.RemoteAddr)
+			daemonLogf("DENIED: Connection coming from non-privileged port: %s\n", req.RemoteAddr)
 			w.WriteHeader(401)
 			return
 		}
 	}
 
 	var n node.NodeInfo
+	daemonLogf("DEBUG: conf.Warewulf.MacIdentify: %t\n", conf.Warewulf.MacIdentify)
 	if !conf.Warewulf.MacIdentify {
-		n, err = nodes.FindByIpaddr(remote[0])
+		daemonLogf("DEBUG: IP based: %t\n", conf.Warewulf.MacIdentify)
+		n, err = nodes.FindByIpaddr(host)
 		if err != nil {
-			daemonLogf("WARNING: Could not find node by IP address: %s\n", remote[0])
+			daemonLogf("WARNING: Could not find node by IP address: %s\n", host)
 			w.WriteHeader(404)
 			return
 		}
 	} else {
-		for _, hwa := range res {
-			daemonLogf("DEBUG: HardwareAddr: %d\n", hwa)
-			n, err = nodes.FindByHwaddr(hwa.(string))
+		hwAddresses, ok := req.URL.Query()["hwAddr"]
+		if !ok || len(hwAddresses[0]) < 1 {
+			daemonLogf("ERROR: Url Param 'hwAddr' is missing")
+			return
+		}
+		daemonLogf("DEBUG: Mac based: %t\n", conf.Warewulf.MacIdentify)
+		for _, hwa := range hwAddresses {
+			n, err = nodes.FindByHwaddr(hwa)
 			if n.Id.Defined() {
 				daemonLogf("DEBUG: nodeId: %s, HardwareAddr: %s\n", n.Id.Get(), hwa)
 				break

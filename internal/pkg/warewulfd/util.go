@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"log/syslog"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -62,6 +63,21 @@ func getSanity(req *http.Request) (node.NodeInfo, error) {
 	daemonLogf("REQ:   %15s: %s\n", nodeobj.Id.Get(), req.URL.Path)
 
 	return nodeobj, nil
+}
+
+func getHostPort(w http.ResponseWriter, req *http.Request) (string, int, error) {
+	host, portStr, err := net.SplitHostPort(req.RemoteAddr)
+	if err != nil {
+		daemonLogf("ERROR: failed to split host and port: %s\n", portStr)
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}
+
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		daemonLogf("ERROR: Could not convert port to integer: %s\n", portStr)
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}
+	return host, port, err
 }
 
 func sendFile(w http.ResponseWriter, filename string, sendto string) error {

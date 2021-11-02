@@ -1,7 +1,6 @@
 package main
 
 import (
-	//"bytes"
 	"fmt"
 	"log"
 	"net"
@@ -45,6 +44,7 @@ func main() {
 		wwlog.Printf(wwlog.ERROR, "Could not get Warewulf configuration: %s\n", err)
 		os.Exit(1)
 	}
+	fmt.Printf("conf: \n %v\n", conf)
 
 	localTCPAddr := net.TCPAddr{}
 	if conf.Warewulf.Secure {
