@@ -85,7 +85,12 @@ func sendFile(w http.ResponseWriter, filename string, sendto string) error {
 	if err != nil {
 		return err
 	}
-	defer fd.Close()
+	defer func(fd *os.File) {
+		err := fd.Close()
+		if err != nil {
+
+		}
+	}(fd)
 
 	FileHeader := make([]byte, 512)
 	_, err = fd.Read(FileHeader)
